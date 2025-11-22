@@ -4,6 +4,7 @@ set -e
 CONFIG_PATH=${1:-outline_config.yml}
 METRICS_ADDR=${METRICS_ADDR:-127.0.0.1:9091}
 REPLAY_HISTORY=${REPLAY_HISTORY:-10000}
+SS_PORT=${SS_PORT:-9000}
 
 if [ ! -f "$CONFIG_PATH" ]; then
   echo "Config file not found: $CONFIG_PATH" >&2
@@ -18,6 +19,7 @@ sudo mkdir -p "$CONFIG_DIR" "$LOG_DIR"
 sudo cp "$ABS_CONFIG" "$CONFIG_DIR/config.yml"
 sudo chown root:root "$CONFIG_DIR/config.yml"
 sudo chmod 0644 "$CONFIG_DIR/config.yml"
+sudo sed -i.bak -E "s/^(\s*port:\s*).*/\1${SS_PORT}/" "$CONFIG_DIR/config.yml" || true
 sudo touch "$LOG_DIR/outline-ss-server.log"
 sudo chmod 0644 "$LOG_DIR/outline-ss-server.log"
 
@@ -82,4 +84,3 @@ sudo systemctl restart outline-ss-server || true
 sudo systemctl status outline-ss-server --no-pager -n 0 || true
 
 echo "outline-ss-server deployed. Config: $CONFIG_DIR/config.yml, Metrics: $METRICS_ADDR, Log: $LOG_DIR/outline-ss-server.log"
-
