@@ -26,6 +26,20 @@ sudo touch "$LOG_DIR/gost.log"
 sudo chown root:root "$LOG_DIR/gost.log"
 sudo chmod 0644 "$LOG_DIR/gost.log"
 
+SYSCTL_FILE="/etc/sysctl.d/99-gost-performance.conf"
+sudo bash -c "cat > $SYSCTL_FILE" <<EOF
+net.core.somaxconn=65535
+net.core.netdev_max_backlog=250000
+net.core.rmem_max=134217728
+net.core.wmem_max=134217728
+net.ipv4.tcp_rmem=4096 87380 134217728
+net.ipv4.tcp_wmem=4096 65536 134217728
+net.ipv4.tcp_congestion_control=bbr
+net.core.default_qdisc=fq
+net.ipv4.tcp_fastopen=3
+net.ipv4.tcp_mtu_probing=1
+EOF
+
 if grep -q '"services"' "$ABS_CONFIG"; then
   TARGET_VERSION=v3
 else
@@ -69,7 +83,9 @@ Type=simple
 ExecStart=$GOST_BIN -C $CONFIG_DIR/$CONFIG_NAME
 Restart=always
 RestartSec=3
-LimitNOFILE=65535
+LimitNOFILE=1048576
+TasksMax=infinity
+ExecStartPre=/sbin/sysctl -p $SYSCTL_FILE
 WorkingDirectory=$CONFIG_DIR
 
 [Install]
