@@ -1,0 +1,13 @@
+{
+    "Debug": false,
+    "ServeNodes": [
+        "tcp://:443/158.51.110.124:9000",
+        "udp://:443/158.51.110.124:9000"
+    ],
+    "Retries": 1,
+    "ServeKeepAlive": 10,
+    "Log": {
+        "Level": "error",
+        "File": "/var/log/gost.log"
+    }
+}
