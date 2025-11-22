@@ -42,6 +42,86 @@ EOF
 
 # Always install v3; no v2 fallback
 
+install_v3_release() {
+  tmpdir=$(mktemp -d)
+  trap 'rm -rf "$tmpdir"' EXIT
+  if ! command -v curl >/dev/null 2>&1; then
+    if command -v apt >/dev/null 2>&1; then
+      sudo apt update -y || true
+      sudo apt install -y curl
+    elif command -v apt-get >/dev/null 2>&1; then
+      sudo apt-get update -y || true
+      sudo apt-get install -y curl
+    elif command -v yum >/dev/null 2>&1; then
+      sudo yum install -y curl
+    elif command -v dnf >/dev/null 2>&1; then
+      sudo dnf install -y curl
+    else
+      echo "Package manager not found. Please install curl manually." >&2
+      exit 1
+    fi
+  fi
+  if ! command -v tar >/dev/null 2>&1; then
+    if command -v apt >/dev/null 2>&1; then
+      sudo apt update -y || true
+      sudo apt install -y tar
+    elif command -v apt-get >/dev/null 2>&1; then
+      sudo apt-get update -y || true
+      sudo apt-get install -y tar
+    elif command -v yum >/dev/null 2>&1; then
+      sudo yum install -y tar
+    elif command -v dnf >/dev/null 2>&1; then
+      sudo dnf install -y tar
+    fi
+  fi
+  os="linux"
+  arch="amd64"
+  case "$(uname -m)" in
+    x86_64) arch="amd64";;
+    aarch64|arm64) arch="arm64";;
+    armv7l) arch="armv7";;
+    *) arch="$(uname -m)";;
+  esac
+  api_url="https://api.github.com/repos/go-gost/gost/releases/latest"
+  dl_url=$(curl -fsSL "$api_url" | grep -E 'browser_download_url' | grep -E "$os.*$arch.*(tar\\.gz|\\.tar\\.gz)" | head -n1 | sed -E 's/.*"([^"]+)".*/\1/')
+  if [ -z "$dl_url" ]; then
+    echo "Failed to resolve latest release asset for $os/$arch." >&2
+    exit 1
+  fi
+  pkg="$tmpdir/gost.tar.gz"
+  urls=("$dl_url")
+  if [ -n "$GITHUB_PROXY" ]; then
+    urls+=("$GITHUB_PROXY/$dl_url")
+  fi
+  urls+=("$(echo "$dl_url" | sed 's#https://github.com/#https://download.fastgit.org/#')")
+  urls+=("$(echo "$dl_url" | sed 's#https://github.com/#https://mirror.ghproxy.com/#')")
+  success=""
+  if command -v aria2c >/dev/null 2>&1; then
+    for u in "${urls[@]}"; do
+      aria2c -x 16 -s 16 -k 1M -o "$pkg" "$u" && success=1 && break
+    done
+  else
+    for u in "${urls[@]}"; do
+      curl -fSL --connect-timeout 10 --retry 5 --retry-delay 2 --retry-connrefused --speed-time 15 --speed-limit 1024 -o "$pkg" "$u" && success=1 && break
+      if command -v wget >/dev/null 2>&1; then
+        wget -O "$pkg" "$u" && success=1 && break
+      fi
+    done
+  fi
+  if [ -z "$success" ]; then
+    echo "Download failed from all mirrors." >&2
+    exit 1
+  fi
+  tar -xzf "$pkg" -C "$tmpdir"
+  bin_path=$(find "$tmpdir" -type f -name gost -perm -111 | head -n1)
+  if [ -z "$bin_path" ]; then
+    bin_path=$(find "$tmpdir" -type f -name gost | head -n1)
+    chmod +x "$bin_path" 2>/dev/null || true
+  fi
+  [ -z "$bin_path" ] && { echo "gost binary not found in package." >&2; exit 1; }
+  sudo install -m 0755 "$bin_path" /usr/local/bin/gost
+}
+
 install_v3() {
   tmpdir=$(mktemp -d)
   trap 'rm -rf "$tmpdir"' EXIT
@@ -52,13 +132,22 @@ install_v3() {
     elif command -v apt-get >/dev/null 2>&1; then
       sudo apt-get update -y || true
       sudo apt-get install -y curl
+    elif command -v yum >/dev/null 2>&1; then
+      sudo yum install -y curl
+    elif command -v dnf >/dev/null 2>&1; then
+      sudo dnf install -y curl
     else
-      echo "Package manager not found (apt/apt-get). Please install curl manually." >&2
+      echo "Package manager not found. Please install curl manually." >&2
       exit 1
     fi
   fi
-  curl -fsSL https://raw.githubusercontent.com/go-gost/gost/master/install.sh -o "$tmpdir/install.sh"
-  sudo bash "$tmpdir/install.sh" -b /usr/local/bin
+  if command -v timeout >/dev/null 2>&1; then
+    curl -fsSL https://raw.githubusercontent.com/go-gost/gost/master/install.sh -o "$tmpdir/install.sh"
+    timeout 30 sudo bash "$tmpdir/install.sh" -b /usr/local/bin -y || timeout 30 sudo bash "$tmpdir/install.sh" -b /usr/local/bin || install_v3_release
+  else
+    curl -fsSL https://raw.githubusercontent.com/go-gost/gost/master/install.sh -o "$tmpdir/install.sh"
+    sudo bash "$tmpdir/install.sh" -b /usr/local/bin -y || sudo bash "$tmpdir/install.sh" -b /usr/local/bin || install_v3_release
+  fi
 }
 
 if ! command -v gost >/dev/null 2>&1; then
