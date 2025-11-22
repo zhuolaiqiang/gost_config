@@ -11,7 +11,7 @@ if [ ! -f "$CONFIG_PATH" ]; then
   exit 1
 fi
 
-ABS_CONFIG=$(realpath "$CONFIG_PATH")
+ABS_CONFIG=$(realpath "$CONFIG_PATH" 2>/dev/null || readlink -f "$CONFIG_PATH")
 CONFIG_NAME=$(basename "$ABS_CONFIG")
 CONFIG_DIR="/etc/gost"
 
@@ -49,14 +49,18 @@ fi
 install_v3() {
   tmpdir=$(mktemp -d)
   trap 'rm -rf "$tmpdir"' EXIT
+  if ! command -v curl >/dev/null 2>&1; then
+    sudo apt update -y || true
+    sudo apt install -y curl
+  fi
   curl -fsSL https://raw.githubusercontent.com/go-gost/gost/master/install.sh -o "$tmpdir/install.sh"
   sudo bash "$tmpdir/install.sh" -b /usr/local/bin
 }
 
 install_v2() {
   if ! command -v snap >/dev/null 2>&1; then
-    sudo apt-get update -y
-    sudo apt-get install -y snapd
+    sudo apt update -y || true
+    sudo apt install -y snapd
   fi
   sudo snap install gost || true
 }
