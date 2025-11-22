@@ -57,8 +57,41 @@ install_v3() {
       exit 1
     fi
   fi
-  curl -fsSL https://raw.githubusercontent.com/go-gost/gost/master/install.sh -o "$tmpdir/install.sh"
-  sudo bash "$tmpdir/install.sh" -b /usr/local/bin -y || sudo bash "$tmpdir/install.sh" -b /usr/local/bin
+  if ! command -v tar >/dev/null 2>&1; then
+    if command -v apt >/dev/null 2>&1; then
+      sudo apt update -y || true
+      sudo apt install -y tar
+    elif command -v apt-get >/dev/null 2>&1; then
+      sudo apt-get update -y || true
+      sudo apt-get install -y tar
+    fi
+  fi
+  api_url="https://api.github.com/repos/go-gost/gost/releases/latest"
+  dl_url=$(curl -fsSL "$api_url" | grep -E 'browser_download_url' | grep -E 'linux.*amd64.*(tar\.gz|\.tar\.gz)' | head -n1 | sed -E 's/.*"([^"]+)".*/\1/')
+  if [ -z "$dl_url" ]; then
+    echo "Failed to resolve latest release asset for linux amd64." >&2
+    exit 1
+  fi
+  if [ -n "$GITHUB_PROXY" ]; then
+    dl_url="$GITHUB_PROXY/$dl_url"
+  fi
+  pkg="$tmpdir/gost.tar.gz"
+  if command -v aria2c >/dev/null 2>&1; then
+    aria2c -x 16 -s 16 -k 1M -o "$pkg" "$dl_url"
+  else
+    curl -fSL "$dl_url" -o "$pkg"
+  fi
+  tar -xzf "$pkg" -C "$tmpdir"
+  bin_path=$(find "$tmpdir" -type f -name gost -perm -111 | head -n1)
+  if [ -z "$bin_path" ]; then
+    bin_path=$(find "$tmpdir" -type f -name gost | head -n1)
+    chmod +x "$bin_path" 2>/dev/null || true
+  fi
+  if [ -z "$bin_path" ]; then
+    echo "gost binary not found in package." >&2
+    exit 1
+  fi
+  sudo install -m 0755 "$bin_path" /usr/local/bin/gost
 }
 
 if ! command -v gost >/dev/null 2>&1; then
