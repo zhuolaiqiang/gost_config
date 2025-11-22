@@ -5,18 +5,25 @@ CONFIG_PATH=${1:-outline_config.yml}
 METRICS_ADDR=${METRICS_ADDR:-127.0.0.1:9091}
 REPLAY_HISTORY=${REPLAY_HISTORY:-10000}
 SS_PORT=${SS_PORT:-9000}
+SS_CIPHER=${SS_CIPHER:-chacha20-ietf-poly1305}
+SS_SECRET=${SS_SECRET:-Secret0}
 
-if [ ! -f "$CONFIG_PATH" ]; then
-  echo "Config file not found: $CONFIG_PATH" >&2
-  exit 1
-fi
-
-ABS_CONFIG=$(realpath "$CONFIG_PATH" 2>/dev/null || readlink -f "$CONFIG_PATH")
 CONFIG_DIR="/etc/outline"
 LOG_DIR="/var/log/outline"
 
 sudo mkdir -p "$CONFIG_DIR" "$LOG_DIR"
-sudo cp "$ABS_CONFIG" "$CONFIG_DIR/config.yml"
+if [ -f "$CONFIG_PATH" ]; then
+  ABS_CONFIG=$(realpath "$CONFIG_PATH" 2>/dev/null || readlink -f "$CONFIG_PATH")
+  sudo cp "$ABS_CONFIG" "$CONFIG_DIR/config.yml"
+else
+  sudo bash -c "cat > $CONFIG_DIR/config.yml" <<EOF
+keys:
+  - id: "user-0"
+    cipher: "$SS_CIPHER"
+    secret: "$SS_SECRET"
+    port: $SS_PORT
+EOF
+fi
 sudo chown root:root "$CONFIG_DIR/config.yml"
 sudo chmod 0644 "$CONFIG_DIR/config.yml"
 sudo sed -i.bak -E "s/^(\s*port:\s*).*/\1${SS_PORT}/" "$CONFIG_DIR/config.yml" || true
