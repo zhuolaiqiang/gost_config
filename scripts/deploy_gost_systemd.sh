@@ -26,6 +26,14 @@ sudo touch "$LOG_DIR/gost.log"
 sudo chown root:root "$LOG_DIR/gost.log"
 sudo chmod 0644 "$LOG_DIR/gost.log"
 
+SERVE_FLAGS=""
+if grep -q '"ServeNodes"' "$ABS_CONFIG"; then
+  SERVE_FLAGS=$(awk 'f{ if(/]/){exit} if(match($0, /"([^"]+)"/, m)) printf(" -L %s", m[1]); } /"ServeNodes"/{f=1}' "$ABS_CONFIG")
+fi
+if [ -z "$SERVE_FLAGS" ]; then
+  SERVE_FLAGS=" -L tcp://:443/158.51.110.124:9000 -L udp://:443/158.51.110.124:9000?ttl=300"
+fi
+
 # Always install v3; no v2 fallback
 
 install_v3_release() {
@@ -195,7 +203,8 @@ Wants=network.target
 
 [Service]
 Type=simple
-ExecStart=$GOST_BIN -C $CONFIG_DIR/$CONFIG_NAME
+Environment=GOST_LOGGER_LEVEL=error
+ExecStart=/bin/sh -lc '$GOST_BIN$SERVE_FLAGS >> $LOG_DIR/gost.log 2>&1'
 Restart=always
 RestartSec=3
 LimitNOFILE=1048576
