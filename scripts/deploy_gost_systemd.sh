@@ -145,12 +145,56 @@ install_v3() {
   sudo bash "$tmpdir/install.sh" -b /usr/local/bin
 }
 
+install_v3_from_source() {
+  tmpdir=$(mktemp -d)
+  trap 'rm -rf "$tmpdir"' EXIT
+  pkgs_install() {
+    if command -v apt >/dev/null 2>&1; then
+      sudo apt update -y || true
+      sudo apt install -y git make gcc || true
+      sudo apt install -y golang-go || sudo apt install -y golang || true
+    elif command -v apt-get >/dev/null 2>&1; then
+      sudo apt-get update -y || true
+      sudo apt-get install -y git make gcc || true
+      sudo apt-get install -y golang-go || sudo apt-get install -y golang || true
+    elif command -v yum >/dev/null 2>&1; then
+      sudo yum install -y git make gcc golang || true
+    elif command -v dnf >/dev/null 2>&1; then
+      sudo dnf install -y git make gcc golang || true
+    fi
+  }
+  pkgs_install
+  if ! command -v git >/dev/null 2>&1 || ! command -v go >/dev/null 2>&1; then
+    echo "Missing git/go toolchain, please install and retry." >&2
+    exit 1
+  fi
+  urls=("https://github.com/go-gost/gost.git")
+  if [ -n "$GITHUB_PROXY" ]; then
+    urls+=("$GITHUB_PROXY/https://github.com/go-gost/gost.git")
+  fi
+  urls+=("https://ghproxy.com/https://github.com/go-gost/gost.git")
+  urls+=("https://gitclone.com/github.com/go-gost/gost.git")
+  srcdir="$tmpdir/src"
+  mkdir -p "$srcdir"
+  success=""
+  for u in "${urls[@]}"; do
+    git clone --depth 1 "$u" "$srcdir/gost" && success=1 && break
+  done
+  if [ -z "$success" ]; then
+    echo "Failed to clone gost source from all mirrors." >&2
+    exit 1
+  fi
+  cd "$srcdir/gost/cmd/gost"
+  go build -o gost
+  sudo install -m 0755 gost /usr/local/bin/gost
+}
+
 if ! command -v gost >/dev/null 2>&1; then
-  install_v3
+  install_v3_from_source
 fi
 
 if ! command -v gost >/dev/null 2>&1; then
-  echo "Failed to install GOST v3. Aborting." >&2
+  echo "Failed to install GOST v3 from source. Aborting." >&2
   exit 1
 fi
 
