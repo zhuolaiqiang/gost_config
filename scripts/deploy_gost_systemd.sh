@@ -20,6 +20,12 @@ sudo cp "$ABS_CONFIG" "$CONFIG_DIR/$CONFIG_NAME"
 sudo chown root:root "$CONFIG_DIR/$CONFIG_NAME"
 sudo chmod 0644 "$CONFIG_DIR/$CONFIG_NAME"
 
+LOG_DIR="/var/log/gost"
+sudo mkdir -p "$LOG_DIR"
+sudo touch "$LOG_DIR/gost.log"
+sudo chown root:root "$LOG_DIR/gost.log"
+sudo chmod 0644 "$LOG_DIR/gost.log"
+
 if grep -q '"services"' "$ABS_CONFIG"; then
   TARGET_VERSION=v3
 else

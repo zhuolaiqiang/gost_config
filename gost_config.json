@@ -8,6 +8,6 @@
     "ServeKeepAlive": 10,
     "Log": {
         "Level": "error",
-        "File": "/var/log/gost.log"
+        "File": "/var/log/gost/gost.log"
     }
 }
