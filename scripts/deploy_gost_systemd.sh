@@ -40,37 +40,34 @@ net.ipv4.tcp_fastopen=3
 net.ipv4.tcp_mtu_probing=1
 EOF
 
-if grep -q '"services"' "$ABS_CONFIG"; then
-  TARGET_VERSION=v3
-else
-  TARGET_VERSION=v2
-fi
+# Always install v3; no v2 fallback
 
 install_v3() {
   tmpdir=$(mktemp -d)
   trap 'rm -rf "$tmpdir"' EXIT
   if ! command -v curl >/dev/null 2>&1; then
-    sudo apt update -y || true
-    sudo apt install -y curl
+    if command -v apt >/dev/null 2>&1; then
+      sudo apt update -y || true
+      sudo apt install -y curl
+    elif command -v apt-get >/dev/null 2>&1; then
+      sudo apt-get update -y || true
+      sudo apt-get install -y curl
+    else
+      echo "Package manager not found (apt/apt-get). Please install curl manually." >&2
+      exit 1
+    fi
   fi
   curl -fsSL https://raw.githubusercontent.com/go-gost/gost/master/install.sh -o "$tmpdir/install.sh"
   sudo bash "$tmpdir/install.sh" -b /usr/local/bin
 }
 
-install_v2() {
-  if ! command -v snap >/dev/null 2>&1; then
-    sudo apt update -y || true
-    sudo apt install -y snapd
-  fi
-  sudo snap install gost || true
-}
+if ! command -v gost >/dev/null 2>&1; then
+  install_v3
+fi
 
 if ! command -v gost >/dev/null 2>&1; then
-  if [ "$TARGET_VERSION" = "v3" ]; then
-    install_v3
-  else
-    install_v2
-  fi
+  echo "Failed to install GOST v3. Aborting." >&2
+  exit 1
 fi
 
 GOST_BIN=$(command -v gost)
