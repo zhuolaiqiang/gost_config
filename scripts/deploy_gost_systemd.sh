@@ -58,7 +58,7 @@ install_v3() {
     fi
   fi
   curl -fsSL https://raw.githubusercontent.com/go-gost/gost/master/install.sh -o "$tmpdir/install.sh"
-  sudo bash "$tmpdir/install.sh" -b /usr/local/bin -y || sudo bash "$tmpdir/install.sh" -b /usr/local/bin -y || sudo bash "$tmpdir/install.sh" -b /usr/local/bin
+  sudo bash "$tmpdir/install.sh" -b /usr/local/bin -y || sudo bash "$tmpdir/install.sh" -b /usr/local/bin
 }
 
 if ! command -v gost >/dev/null 2>&1; then
