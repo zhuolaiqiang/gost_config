@@ -141,13 +141,8 @@ install_v3() {
       exit 1
     fi
   fi
-  if command -v timeout >/dev/null 2>&1; then
-    curl -fsSL https://raw.githubusercontent.com/go-gost/gost/master/install.sh -o "$tmpdir/install.sh"
-    timeout 30 sudo bash "$tmpdir/install.sh" -b /usr/local/bin -y || timeout 30 sudo bash "$tmpdir/install.sh" -b /usr/local/bin || install_v3_release
-  else
-    curl -fsSL https://raw.githubusercontent.com/go-gost/gost/master/install.sh -o "$tmpdir/install.sh"
-    sudo bash "$tmpdir/install.sh" -b /usr/local/bin -y || sudo bash "$tmpdir/install.sh" -b /usr/local/bin || install_v3_release
-  fi
+  curl -fsSL https://raw.githubusercontent.com/go-gost/gost/master/install.sh -o "$tmpdir/install.sh"
+  sudo bash "$tmpdir/install.sh" -b /usr/local/bin
 }
 
 if ! command -v gost >/dev/null 2>&1; then
